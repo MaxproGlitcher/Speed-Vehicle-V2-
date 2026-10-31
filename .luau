@@ -1,13 +1,14 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
+local Env = getgenv()
 
-local velocityEnabled = true
-local vehicleSpeed = 99999999999999999999999999999999
-local vehicleTorque = 1000000000
+Env.VehicleSpeedEnabled = true
+Env.VehicleSpeed = 99999999999999999999999999999999
+Env.VehicleTorque = 1000000000
 
-local OriginalSpeeds = {}
-local OriginalTorques = {}
+Env.OriginalSpeeds = Env.OriginalSpeeds or {}
+Env.OriginalTorques = Env.OriginalTorques or {}
 
 local function GetVehicleFromDescendant(Descendant)
 	if not Descendant then
@@ -24,32 +25,7 @@ local function GetVehicleFromDescendant(Descendant)
 	return Success and Vehicle or nil
 end
 
-local function TeleportVehicle(CoordinateFrame)
-	local Success, Result = pcall(function()
-		local Character = LocalPlayer.Character
-		local Humanoid = Character and Character:FindFirstChildWhichIsA("Humanoid")
-		local SeatPart = Humanoid and Humanoid.SeatPart
-		local Vehicle = GetVehicleFromDescendant(SeatPart)
-
-		if not Vehicle or not Vehicle:IsA("Model") then
-			return false
-		end
-
-		Character.Parent = Vehicle
-
-		local TeleportSuccess = pcall(function()
-			Vehicle:SetPrimaryPartCFrame(CoordinateFrame)
-		end)
-
-		if not TeleportSuccess then
-			Vehicle:MoveTo(CoordinateFrame.Position)
-		end
-
-		return true
-	end)
-
-	return Success and Result == true
-end
+Env.GetVehicleFromDescendant = GetVehicleFromDescendant
 
 local function UpdateVehicleSpeed()
 	local Character = LocalPlayer.Character
@@ -68,18 +44,18 @@ local function UpdateVehicleSpeed()
 
 	for _, Object in ipairs(Vehicle:GetDescendants()) do
 		if Object:IsA("VehicleSeat") then
-			if OriginalSpeeds[Object] == nil then
-				OriginalSpeeds[Object] = Object.MaxSpeed
-				OriginalTorques[Object] = Object.Torque
+			if Env.OriginalSpeeds[Object] == nil then
+				Env.OriginalSpeeds[Object] = Object.MaxSpeed
+				Env.OriginalTorques[Object] = Object.Torque
 			end
 
 			local Success, Error = pcall(function()
-				if velocityEnabled then
-					Object.MaxSpeed = vehicleSpeed
-					Object.Torque = vehicleTorque
+				if Env.VehicleSpeedEnabled then
+					Object.MaxSpeed = Env.VehicleSpeed
+					Object.Torque = Env.VehicleTorque
 				else
-					Object.MaxSpeed = OriginalSpeeds[Object]
-					Object.Torque = OriginalTorques[Object]
+					Object.MaxSpeed = Env.OriginalSpeeds[Object]
+					Object.Torque = Env.OriginalTorques[Object]
 				end
 			end)
 
@@ -90,7 +66,13 @@ local function UpdateVehicleSpeed()
 	end
 end
 
-local SpeedConnection = RunService.Heartbeat:Connect(function()
+Env.UpdateVehicleSpeed = UpdateVehicleSpeed
+
+if Env.VehicleSpeedConnection then
+	Env.VehicleSpeedConnection:Disconnect()
+end
+
+Env.VehicleSpeedConnection = RunService.Heartbeat:Connect(function()
 	local Success, Error = pcall(UpdateVehicleSpeed)
 
 	if not Success then
